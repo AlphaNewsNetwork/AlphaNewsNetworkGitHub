@@ -15,7 +15,7 @@
   "contentful-management": "^10.42.0",
   "axios": "^1.4.0",
   "cheerio": "^1.0.0-rc.12"
-}
+},
 
   "devDependencies": {
     "typescript": "^5.0.0",
