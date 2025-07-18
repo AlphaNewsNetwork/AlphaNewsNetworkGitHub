@@ -9,6 +9,7 @@ export default function Home() {
       {/* Header */}
       <header className="flex justify-between items-center p-4 border-b border-gray-300 dark:border-gray-700 sticky top-0 z-50 bg-white dark:bg-black">
         <div className="flex items-center space-x-2">
+          <Image src="/logo.png" alt="Alpha News Network Logo" width={50} height={50} />
           <h1 className="text-2xl font-extrabold tracking-tight">Alpha News Network</h1>
         </div>
         <nav className="hidden md:flex space-x-6 text-sm font-medium">
@@ -72,7 +73,7 @@ export default function Home() {
               width={500}
               height={300}
               className="object-cover w-full h-48"
-              priority={num === 1} // prioritize first image loading
+              priority={num === 1}
             />
             <div className="p-4">
               <span className="text-xs uppercase text-pink-600 dark:text-pink-300">Trending</span>
