@@ -125,8 +125,61 @@ export default function Home({ stories, videos }) {
       </section>
 
       {/* Trending Bar */}
-      <section className="bg-yellow-100 dark:bg-yellow-900 py-3 px-6 overflow-x-auto whitespace-nowrap text-sm font-semibold">
+      <section className="bg-blue-100 dark:bg-blue-900 py-3 px-6 overflow-x-auto whitespace-nowrap text-sm font-semibold">
         <span className="mr-4">🔥 Trending Now:</span>
         <span className="mr-4">AI Pets Are a Thing Now</span>
         <span className="mr-4">SpongeBob Is Back (Again)</span>
-        <span className="mr-4">Alpha Teens Hack N
+        <span className="mr-4">Alpha Teens Hack NASA (Kinda)</span>
+        <span className="mr-4">The Comet Fit is the Look</span>
+      </section>
+
+      {/* Main grid: Video Spotlight + Stories */}
+      <main className="grid grid-cols-1 md:grid-cols-3 gap-6 p-6">
+        {/* Video Spotlight */}
+        <section className="md:col-span-1 p-6 bg-gray-100 dark:bg-gray-800 rounded-lg">
+          <h2 className="text-2xl font-bold mb-4 text-center text-black dark:text-white">
+            Video Spotlight 🎥
+          </h2>
+          <div className="flex flex-col gap-6">
+            {videos.map((video) => (
+              <VideoCard key={video.sys.id} video={video} />
+            ))}
+          </div>
+        </section>
+
+        {/* Stories feed */}
+        <section className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
+          {stories.map(({ sys, fields }) => (
+            <Link key={sys.id} href={`/stories/${fields.slug}`} passHref>
+              <a className="block bg-gray-100 dark:bg-gray-800 rounded-xl overflow-hidden shadow-md hover:scale-105 transition-transform">
+                {fields.image && (
+                  <Image
+                    src={"https:" + fields.image.fields.file.url}
+                    alt={fields.image.fields.title || "Story image"}
+                    width={500}
+                    height={300}
+                    className="object-contain w-full h-48"
+                  />
+                )}
+                <div className="p-4">
+                  <span className="text-xs uppercase text-pink-600 dark:text-pink-300">
+                    Trending
+                  </span>
+                  <h3 className="mt-2 text-lg font-bold">{fields.title}</h3>
+                  <p className="text-sm mt-1 text-gray-600 dark:text-gray-300">
+                    {fields.excerpt}
+                  </p>
+                </div>
+              </a>
+            </Link>
+          ))}
+        </section>
+      </main>
+
+      {/* Footer */}
+      <footer className="mt-8 p-6 text-center text-xs text-gray-500 dark:text-gray-400">
+        © 2025 Alpha News Network — Powered by Gen Alpha vibes 💫
+      </footer>
+    </div>
+  );
+}
