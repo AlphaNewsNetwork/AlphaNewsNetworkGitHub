@@ -1,8 +1,19 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import { getStories } from "../lib/contentful";
 
-export default function Home() {
+export async function getStaticProps() {
+  const stories = await getStories();
+  return {
+    props: {
+      stories,
+    },
+    revalidate: 60, // optional: rebuild the page at most every 60 seconds
+  };
+}
+
+export default function Home({ stories }) {
   const [darkMode, setDarkMode] = useState(false);
 
   return (
@@ -63,23 +74,22 @@ export default function Home() {
 
       {/* Main Feed */}
       <main className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 p-6">
-        {[1, 2, 3].map((num) => (
-          <Link key={num} href={`/stories/${num}`} passHref>
+        {stories.map(({ sys, fields }) => (
+          <Link key={sys.id} href={`/stories/${fields.slug}`} passHref>
             <a className="block bg-gray-100 dark:bg-gray-800 rounded-xl overflow-hidden shadow-md hover:scale-105 transition-transform">
-              <Image
-                src={`/story${num}.jpg`}
-                alt={`Story ${num}`}
-                width={500}
-                height={300}
-                className="object-cover w-full h-48"
-                priority={num === 1}
-              />
+              {fields.image && (
+                <Image
+                  src={"https:" + fields.image.fields.file.url}
+                  alt={fields.image.fields.title || "Story image"}
+                  width={500}
+                  height={300}
+                  className="object-cover w-full h-48"
+                />
+              )}
               <div className="p-4">
                 <span className="text-xs uppercase text-pink-600 dark:text-pink-300">Trending</span>
-                <h3 className="mt-2 text-lg font-bold">Gen Alpha Reacts to the Latest TikTok Craze 😱</h3>
-                <p className="text-sm mt-1 text-gray-600 dark:text-gray-300">
-                  It’s got slime, sound effects, and a plot twist. Yep, it's viral.
-                </p>
+                <h3 className="mt-2 text-lg font-bold">{fields.title}</h3>
+                <p className="text-sm mt-1 text-gray-600 dark:text-gray-300">{fields.excerpt}</p>
               </div>
             </a>
           </Link>
