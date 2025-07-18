@@ -1,19 +1,23 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import { getStories } from "../lib/contentful";
+import { getStories, getVideos } from "../lib/contentful";
 
 export async function getStaticProps() {
   const stories = await getStories();
+  const videos = await getVideos();  // Fetch videos here
+
   return {
     props: {
       stories,
+      videos,    // Pass videos to the page as props
     },
-    revalidate: 60, // optional: rebuild the page at most every 60 seconds
+    revalidate: 60,
   };
 }
 
-export default function Home({ stories }) {
+
+export default function Home({ stories, videos }) {
   const [darkMode, setDarkMode] = useState(false);
 
   return (
