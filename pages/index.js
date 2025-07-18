@@ -83,7 +83,7 @@ export default function Home({ stories }) {
                   alt={fields.image.fields.title || "Story image"}
                   width={500}
                   height={300}
-                  className="object-cover w-full h-48"
+                  className="object-contain w-full h-48"
                 />
               )}
               <div className="p-4">
