@@ -16,17 +16,36 @@ const contentfulClient = createClient({
 async function extractArticleText(url) {
   try {
     const response = await axios.get(url);
+    
     if (!response || !response.data) {
-      throw new Error("No HTML data received");
+      throw new Error("No response data");
     }
+    
     const html = response.data;
+    
+    if (typeof html !== "string") {
+      throw new Error("Response data is not a string");
+    }
+    
     const $ = cheerio.load(html);
-    let articleText = $("article").text() || $("body").text();
-    articleText = articleText.replace(/\s+/g, " ").trim();
+    
+    // Try to extract article text from <article> or fallback to <body>
+    let articleText = $("article").text().trim();
+    if (!articleText) {
+      articleText = $("body").text().trim();
+    }
+    
+    if (!articleText) {
+      throw new Error("Could not extract article text from HTML");
+    }
+    
+    // Clean up whitespace
+    articleText = articleText.replace(/\s+/g, " ");
+    
     return articleText;
   } catch (error) {
-    console.error("Error fetching or parsing HTML:", error);
-    throw error;  // re-throw to let the caller handle it
+    console.error("Error in extractArticleText:", error.message);
+    throw error; // Re-throw so caller knows something failed
   }
 }
 
