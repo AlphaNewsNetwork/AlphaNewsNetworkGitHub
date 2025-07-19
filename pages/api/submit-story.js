@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import axios from "axios";
-import cheerio from 'cheerio';
+import * as cheerio from "cheerio";
 import { createClient } from "contentful-management";
 
 const openai = new OpenAI({
@@ -12,58 +12,40 @@ const contentfulClient = createClient({
   accessToken: process.env.CONTENTFUL_MANAGEMENT_ACCESS_TOKEN,
 });
 
-// Helper to extract article text from a URL
+// Helper to extract article text from a URL with error handling
 async function extractArticleText(url) {
   try {
-    const response = await axios.get(url);
-    
-    if (!response || !response.data) {
-      throw new Error("No response data");
+    const { data: html } = await axios.get(url);
+    if (!html) {
+      throw new Error("No HTML received from axios.get");
     }
-    
-    const html = response.data;
-    
-    if (typeof html !== "string") {
-      throw new Error("Response data is not a string");
-    }
-    
     const $ = cheerio.load(html);
-    
-    // Try to extract article text from <article> or fallback to <body>
-    let articleText = $("article").text().trim();
+    let articleText = $("article").text() || $("body").text();
+    articleText = articleText.replace(/\s+/g, " ").trim();
     if (!articleText) {
-      articleText = $("body").text().trim();
+      throw new Error("No article or body text found");
     }
-    
-    if (!articleText) {
-      throw new Error("Could not extract article text from HTML");
-    }
-    
-    // Clean up whitespace
-    articleText = articleText.replace(/\s+/g, " ");
-    
     return articleText;
-  } catch (error) {
-    console.error("Error in extractArticleText:", error.message);
-    throw error; // Re-throw so caller knows something failed
+  } catch (err) {
+    console.error("extractArticleText error:", err.message);
+    throw err;
   }
 }
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
-    res.status(405).json({ message: "Method not allowed" });
-    return;
+    return res.status(405).json({ message: "Method not allowed" });
   }
 
   const { url } = req.body;
   if (!url) {
-    res.status(400).json({ message: "Missing URL in request body" });
-    return;
+    return res.status(400).json({ message: "Missing URL in request body" });
   }
 
   try {
     // Step 1: Extract article text from the URL
     const articleText = await extractArticleText(url);
+    console.log("Article text extracted:", articleText.slice(0, 100));
 
     // Step 2: Use OpenAI to rewrite the article in Gen Alpha style
     const completion = await openai.chat.completions.create({
@@ -128,10 +110,7 @@ export default async function handler(req, res) {
             sys: {
               type: "Link",
               linkType: "Asset",
-              // Normally you'd upload the image to Contentful here, but for simplicity:
-              // You can store the image URL or use a separate upload process.
-              // This requires more setup — let me know if you want help with that.
-              // For now, we leave this blank or handle externally.
+              // Leaving image linking blank for now as uploading assets requires extra setup
             },
           },
         },
@@ -141,7 +120,7 @@ export default async function handler(req, res) {
 
     res.status(200).json({ message: "Story created successfully", entryId: entry.sys.id, imageUrl });
   } catch (error) {
-    console.error(error);
+    console.error("API handler error:", error.message);
     res.status(500).json({ message: "Error processing story", error: error.message });
   }
 }
