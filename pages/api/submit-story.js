@@ -14,14 +14,20 @@ const contentfulClient = createClient({
 
 // Helper to extract article text from a URL
 async function extractArticleText(url) {
-  const { data: html } = await axios.get(url);
-  const $ = cheerio.load(html);
+  try {
+    const { data: html } = await axios.get(url);
+    if (!html) throw new Error("No HTML data received");
+    const $ = cheerio.load(html);
 
-  // Try to find main article content
-  let articleText = $("article").text() || $("body").text();
-  articleText = articleText.replace(/\s+/g, " ").trim();
+    // Try to find main article content
+    let articleText = $("article").text() || $("body").text();
+    articleText = articleText.replace(/\s+/g, " ").trim();
 
-  return articleText;
+    return articleText;
+  } catch (err) {
+    console.error("Error fetching article HTML:", err.message);
+    throw err;
+  }
 }
 
 export default async function handler(req, res) {
