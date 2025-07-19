@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import axios from "axios";
-import cheerio from "cheerio";
+const cheerio = require('cheerio')
 import { createClient } from "contentful-management";
 
 const openai = new OpenAI({
