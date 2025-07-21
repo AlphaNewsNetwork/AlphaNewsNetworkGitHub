@@ -1,24 +1,44 @@
-import fetch from 'node-fetch';
+export const config = {
+  api: {
+    bodyParser: false, // disable Next.js default body parser
+  },
+};
+
+import getRawBody from 'raw-body';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const contentfulPayload = req.body;
+  let rawBody;
+  try {
+    rawBody = await getRawBody(req);
+  } catch (e) {
+    return res.status(400).json({ error: 'Error reading request body' });
+  }
 
-  if (!contentfulPayload?.fields) {
+  let payload;
+  try {
+    payload = JSON.parse(rawBody.toString());
+  } catch (e) {
+    return res.status(400).json({ error: 'Invalid JSON' });
+  }
+
+  console.log('Payload:', JSON.stringify(payload, null, 2));
+
+  if (!payload?.fields) {
     return res.status(400).json({ error: 'Missing fields in request body' });
   }
 
-  const title = contentfulPayload.fields.title?.['en-US'];
-  const summary = contentfulPayload.fields.summary?.['en-US'];
+  const title = payload.fields.title?.['en-US'];
+  const excerpt = payload.fields.excerpt?.['en-US'];
 
-  if (!title || !summary) {
-    return res.status(400).json({ error: 'Missing required title or summary fields' });
+  if (!title || !excerpt) {
+    return res.status(400).json({ error: 'Missing title or excerpt fields' });
   }
 
-  const prompt = `Create a concise, engaging 30-second video script based on this story:\nTitle: ${title}\nSummary: ${summary}\nScript:`;
+  const prompt = `Create a concise, engaging 30-second video script based on this story:\nTitle: ${title}\nSummary: ${excerpt}\nScript:`;
 
   try {
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
