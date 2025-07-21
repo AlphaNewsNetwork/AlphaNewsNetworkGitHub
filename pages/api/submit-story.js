@@ -1,126 +1,52 @@
-import OpenAI from "openai";
-import axios from "axios";
-import * as cheerio from "cheerio";
-import { createClient } from "contentful-management";
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-// Initialize Contentful Management client
-const contentfulClient = createClient({
-  accessToken: process.env.CONTENTFUL_MANAGEMENT_ACCESS_TOKEN,
-});
-
-// Helper to extract article text from a URL with error handling
-async function extractArticleText(url) {
-  try {
-    const { data: html } = await axios.get(url);
-    if (!html) {
-      throw new Error("No HTML received from axios.get");
-    }
-    const $ = cheerio.load(html);
-    let articleText = $("article").text() || $("body").text();
-    articleText = articleText.replace(/\s+/g, " ").trim();
-    if (!articleText) {
-      throw new Error("No article or body text found");
-    }
-    return articleText;
-  } catch (err) {
-    console.error("extractArticleText error:", err.message);
-    throw err;
-  }
-}
+import fetch from 'node-fetch';
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ message: "Method not allowed" });
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { url } = req.body;
-  if (!url) {
-    return res.status(400).json({ message: "Missing URL in request body" });
+  const contentfulPayload = req.body;
+
+  if (!contentfulPayload?.fields) {
+    return res.status(400).json({ error: 'Missing fields in request body' });
   }
+
+  const title = contentfulPayload.fields.title?.['en-US'];
+  const summary = contentfulPayload.fields.summary?.['en-US'];
+
+  if (!title || !summary) {
+    return res.status(400).json({ error: 'Missing required title or summary fields' });
+  }
+
+  const prompt = `Create a concise, engaging 30-second video script based on this story:\nTitle: ${title}\nSummary: ${summary}\nScript:`;
 
   try {
-    // Step 1: Extract article text from the URL
-    const articleText = await extractArticleText(url);
-    console.log("Article text extracted:", articleText.slice(0, 100));
-
-    // Step 2: Use OpenAI to rewrite the article in Gen Alpha style
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You rewrite news stories for Generation Alpha: simple, fun, emoji-filled, and engaging.",
-        },
-        {
-          role: "user",
-          content: `Rewrite this story:\n\n${articleText}`,
-        },
-      ],
-    });
-    const rewrittenStory = completion.choices[0].message.content;
-
-    // Step 3: Generate an AI image prompt and create image
-    const promptCompletion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        {
-          role: "system",
-          content: "You generate creative AI image prompts for news stories.",
-        },
-        {
-          role: "user",
-          content: `Create a short AI art prompt for this story:\n\n${rewrittenStory}`,
-        },
-      ],
-    });
-    const imagePrompt = promptCompletion.choices[0].message.content;
-
-    const imageResponse = await openai.images.generate({
-      model: "dall-e-3",
-      prompt: imagePrompt,
-      size: "1024x1024",
-      quality: "standard",
-    });
-    const imageUrl = imageResponse.data[0].url;
-
-    // Step 4: Create entry in Contentful
-    const space = await contentfulClient.getSpace(process.env.CONTENTFUL_SPACE_ID);
-    const environment = await space.getEnvironment("master");
-    const entry = await environment.createEntry("story", {
-      fields: {
-        title: {
-          "en-US": rewrittenStory.split("\n")[0] || "Gen Alpha News Story",
-        },
-        slug: {
-          "en-US": `gen-alpha-story-${Date.now()}`,
-        },
-        excerpt: {
-          "en-US": rewrittenStory.slice(0, 150) + "...",
-        },
-        body: {
-          "en-US": rewrittenStory,
-        },
-        image: {
-          "en-US": {
-            sys: {
-              type: "Link",
-              linkType: "Asset",
-              // Leaving image linking blank for now as uploading assets requires extra setup
-            },
-          },
-        },
+    const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
       },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 150,
+        temperature: 0.7,
+      }),
     });
-    await entry.publish();
 
-    res.status(200).json({ message: "Story created successfully", entryId: entry.sys.id, imageUrl });
+    if (!openaiResponse.ok) {
+      const errorText = await openaiResponse.text();
+      console.error('OpenAI API error:', errorText);
+      return res.status(500).json({ error: 'OpenAI API error', details: errorText });
+    }
+
+    const openaiData = await openaiResponse.json();
+    const script = openaiData.choices[0].message.content.trim();
+
+    return res.status(200).json({ script });
   } catch (error) {
-    console.error("API handler error:", error.message);
-    res.status(500).json({ message: "Error processing story", error: error.message });
+    console.error('Function error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
   }
 }
