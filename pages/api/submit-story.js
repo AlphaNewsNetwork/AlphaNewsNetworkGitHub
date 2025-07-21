@@ -1,9 +1,10 @@
 import getRawBody from 'raw-body';
 import fetch from 'node-fetch';
+import { createClient } from 'contentful-management';
 
 export const config = {
   api: {
-    bodyParser: false, // Disable default Next.js body parsing to handle raw-body manually
+    bodyParser: false, // We manually parse raw body
   },
 };
 
@@ -41,6 +42,8 @@ export default async function handler(req, res) {
 
   const prompt = `Create a concise, engaging 30-second video script based on this story:\nTitle: ${title}\nExcerpt: ${summary}\nScript:`;
 
+  // Call OpenAI
+  let script;
   try {
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -63,11 +66,34 @@ export default async function handler(req, res) {
     }
 
     const openaiData = await openaiResponse.json();
-    const script = openaiData.choices[0].message.content.trim();
-
-    return res.status(200).json({ script });
+    script = openaiData.choices[0].message.content.trim();
   } catch (error) {
-    console.error('Function error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    console.error('OpenAI request failed:', error);
+    return res.status(500).json({ error: 'OpenAI request failed' });
   }
+
+  // Update Contentful entry with generated script
+  try {
+    const contentfulClient = createClient({
+      accessToken: process.env.CONTENTFUL_MANAGEMENT_API_ACCESS_TOKEN,
+    });
+
+    const space = await contentfulClient.getSpace(contentfulPayload.sys.space.sys.id);
+    const environment = await space.getEnvironment(contentfulPayload.sys.environment.sys.id);
+    const entry = await environment.getEntry(contentfulPayload.sys.id);
+
+    entry.fields.videoscript = {
+      'en-US': script,
+    };
+
+    const updatedEntry = await entry.update();
+    await updatedEntry.publish();
+
+    console.log('Contentful entry updated and published with script');
+  } catch (error) {
+    console.error('Failed to update Contentful entry:', error);
+    return res.status(500).json({ error: 'Failed to update Contentful entry' });
+  }
+
+  return res.status(200).json({ script });
 }
