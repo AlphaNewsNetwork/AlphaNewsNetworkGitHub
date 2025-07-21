@@ -1,10 +1,11 @@
+import getRawBody from 'raw-body';
+import fetch from 'node-fetch';
+
 export const config = {
   api: {
-    bodyParser: false, // disable Next.js default body parser
+    bodyParser: false, // Disable default Next.js body parsing to handle raw-body manually
   },
 };
-
-import getRawBody from 'raw-body';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -15,30 +16,30 @@ export default async function handler(req, res) {
   try {
     rawBody = await getRawBody(req);
   } catch (e) {
-    return res.status(400).json({ error: 'Error reading request body' });
+    console.error('Error reading raw body:', e);
+    return res.status(400).json({ error: 'Could not read body' });
   }
 
-  let payload;
+  let contentfulPayload;
   try {
-    payload = JSON.parse(rawBody.toString());
+    contentfulPayload = JSON.parse(rawBody.toString());
   } catch (e) {
+    console.error('Invalid JSON:', e);
     return res.status(400).json({ error: 'Invalid JSON' });
   }
 
-  console.log('Payload:', JSON.stringify(payload, null, 2));
-
-  if (!payload?.fields) {
+  if (!contentfulPayload?.fields) {
     return res.status(400).json({ error: 'Missing fields in request body' });
   }
 
-  const title = payload.fields.title?.['en-US'];
-  const excerpt = payload.fields.excerpt?.['en-US'];
+  const title = contentfulPayload.fields.title?.['en-US'] || '';
+  const summary = contentfulPayload.fields.excerpt?.['en-US'] || '';
 
-  if (!title || !excerpt) {
-    return res.status(400).json({ error: 'Missing title or excerpt fields' });
+  if (!title || !summary) {
+    return res.status(400).json({ error: 'Missing title or excerpt' });
   }
 
-  const prompt = `Create a concise, engaging 30-second video script based on this story:\nTitle: ${title}\nSummary: ${excerpt}\nScript:`;
+  const prompt = `Create a concise, engaging 30-second video script based on this story:\nTitle: ${title}\nExcerpt: ${summary}\nScript:`;
 
   try {
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
